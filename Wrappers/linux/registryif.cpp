@@ -77,7 +77,7 @@ NTSTATUS RegistryAccess::readDword(const PCHAR name, PDWORD p_value)
 
 NTSTATUS RegistryAccess::writeDword(const PCHAR name, DWORD value)
 {
-    g_reg.insert(std::pair<std::string, DWORD>(std::string(name), value));
+    g_reg[std::string(name)] = value;
     return STATUS_SUCCESS;
 }
 

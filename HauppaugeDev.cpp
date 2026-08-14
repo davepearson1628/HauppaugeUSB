@@ -29,6 +29,14 @@
 //Common/Rx/audio_CS8416.h
 #include "audio_CS8416.h"
 
+// CS8416 registers/bits used for automatic audio-format detection.
+static const uint8_t CS8416_DEVICE_ADDR       = 0x22;
+static const uint8_t CS8416_AFMTD_REG         = 0x0B;
+static const uint8_t CS8416_RXERR_REG         = 0x0C;
+static const uint8_t CS8416_AFMTD_IEC61937    = 0x20;
+static const uint8_t CS8416_AFMTD_PCM         = 0x40;
+static const uint8_t CS8416_RXERR_UNLOCK      = 0x10;
+
 #include "HauppaugeDev.h"
 #include "FlipInterlacedFields.h"
 #include "Logger.h"
@@ -109,14 +117,20 @@ void HauppaugeDev::configure(void)
     RegistryAccess::writeDword("AudioCapSource", m_params.audioInput);
 //    RegistryAccess::writeDword("AudioCapSPDIFInput", 3); // Default = 0
 
-    RegistryAccess::writeDword("AudioCodecOutputFormat", m_params.audioCodec);
+    // AUTO is resolved after the CS8416 has locked onto the incoming S/PDIF
+    // signal.  Use AAC as the safe initial encoder value until then.
+    HAPI_AUDIO_CODEC configuredAudioCodec =
+        (m_params.audioCodec == HAPI_AUDIO_CODEC_AUTO
+            ? HAPI_AUDIO_CODEC_AAC
+            : m_params.audioCodec);
+
+    RegistryAccess::writeDword("AudioCodecOutputFormat", configuredAudioCodec);
 //    RegistryAccess::writeDword("AudioCapMode", 5);
 
     RegistryAccess::writeDword("AudioOutputSamplingRate",
         m_params.audioSamplerate);
     RegistryAccess::writeDword("AudioCapSampleRate", m_params.audioSamplerate);
     RegistryAccess::writeDword("AudioOutputBitrate", m_params.audioBitrate);
-
 
     // AudioOutputMode
     // -
@@ -234,6 +248,88 @@ bool HauppaugeDev::set_input_format(encoderSource_t source,
     encoderAudioInFormat_t audioFormat =
         (m_params.audioCodec == HAPI_AUDIO_CODEC_AC3 ? ENCAIF_AC3
          : ENCAIF_AUTO);
+
+    /*
+     * HAPI_AUDIO_CODEC_AUTO:
+     *
+     * The TV360 is configured for "Follow Content".  On its S/PDIF output
+     * the CS8416 sees ordinary stereo as PCM and Dolby Digital as an
+     * IEC61937 compressed stream.
+     *
+     * Wait for the CS8416 receiver to lock, then select the existing
+     * Hauppauge AAC or AC3 path automatically.
+     */
+    if (m_params.audioCodec == HAPI_AUDIO_CODEC_AUTO &&
+        m_params.audioInput == HAPI_AUDIO_CAPTURE_SOURCE_SPDIF)
+    {
+        HAPI_AUDIO_CODEC detectedCodec = HAPI_AUDIO_CODEC_AAC;
+        bool formatDetected = false;
+
+        try
+        {
+            audio_CS8416 cs8416(*m_fx2);
+            cs8416.reset(audio_CS8416::AudioInput::OPTICAL);
+
+            for (unsigned attempt = 0; attempt < 20; ++attempt)
+            {
+                uint8_t afmtdReg = CS8416_AFMTD_REG;
+                uint8_t rxerrReg = CS8416_RXERR_REG;
+                uint8_t afmtd = 0;
+                uint8_t rxerr = 0;
+
+                bool afmtdOK = m_fx2->I2CWriteRead(
+                    CS8416_DEVICE_ADDR, &afmtdReg, 1, &afmtd, 1);
+
+                bool rxerrOK = m_fx2->I2CWriteRead(
+                    CS8416_DEVICE_ADDR, &rxerrReg, 1, &rxerr, 1);
+
+                if (afmtdOK && rxerrOK &&
+                    !(rxerr & CS8416_RXERR_UNLOCK))
+                {
+                    if (afmtd & CS8416_AFMTD_IEC61937)
+                    {
+                        detectedCodec = HAPI_AUDIO_CODEC_AC3;
+                        audioFormat = ENCAIF_AC3;
+                        formatDetected = true;
+
+                        INFOLOG << "CS8416 detected IEC61937 audio - "
+                                << "selecting AC3 encoder";
+                        break;
+                    }
+
+                    if (afmtd & CS8416_AFMTD_PCM)
+                    {
+                        detectedCodec = HAPI_AUDIO_CODEC_AAC;
+                        audioFormat = ENCAIF_AUTO;
+                        formatDetected = true;
+
+                        INFOLOG << "CS8416 detected PCM audio - "
+                                << "selecting AAC encoder";
+                        break;
+                    }
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+        catch (std::runtime_error &e)
+        {
+            WARNLOG << "Unable to initialise CS8416 for automatic "
+                    << "audio detection.";
+        }
+
+        if (!formatDetected)
+        {
+            detectedCodec = HAPI_AUDIO_CODEC_AAC;
+            audioFormat = ENCAIF_AUTO;
+
+            WARNLOG << "Unable to determine S/PDIF audio format - "
+                    << "falling back to AAC";
+        }
+
+        RegistryAccess::writeDword(
+            "AudioCodecOutputFormat", detectedCodec);
+    }
 
     set_audio_format(audioFormat);
 
@@ -597,7 +693,13 @@ bool HauppaugeDev::Open(USBWrapper_t & usbio, bool ac3,
     INFOLOG << "encDev ready";
 
     m_rxDev = new receiver_ADV7842_t(*m_fx2);
-    if (ac3)
+
+    // AUTO must advertise AC3 capability so the TV360 is free to send
+    // Dolby Digital when "Follow Content" is selected.
+    bool ac3Capable =
+        ac3 || (m_params.audioCodec == HAPI_AUDIO_CODEC_AUTO);
+
+    if (ac3Capable)
     {
 #if 1
         m_rxDev->setEDID(edidHDPVR2_1080p6050_ac3_fix_rgb,

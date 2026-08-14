@@ -1,5 +1,6 @@
-
 ## Override path set by Hauppauge's make files, to use our 'wrappers'
+
+PREFIX ?= /opt/Hauppauge
 
 override TOP := ./Hauppauge
 
@@ -13,14 +14,14 @@ $(TOP)/Common/EncoderDev/HAPIHost/MChip
 
 override INC = $(OS_INC) -I.. -I$(TOP)/Common -I./Wrappers/$(OS)	\
 -I$(TOP)/Common/FX2API -I$(TOP)/Common/Rx/ADV7842			\
--I$(TOP)/Common/Rx/ADV7842/RX -I$(TOP)/Common/Rx/ADV7842/RX/LIB		\
+-I$(TOP)/Common/Rx/ADV7842/RX -I$(TOP)/Common/Rx/ADV7842/RX/LIB	\
 -I$(TOP)/Common/Rx/ADV7842/RX/HAL					\
 -I$(TOP)/Common/Rx/ADV7842/RX/HAL/4G					\
 -I$(TOP)/Common/Rx/ADV7842/RX/HAL/4G/ADV7842/HAL			\
 -I$(TOP)/Common/Rx/ADV7842/RX/HAL/4G/ADV7842/MACROS			\
 -I$(TOP)/Common/Rx -I$(TOP)/Common/EncoderDev				\
 -I$(TOP)/Common/EncoderDev/HAPIHost					\
--I$(TOP)/Common/EncoderDev/HAPIHost/MChip                               \
+-I$(TOP)/Common/EncoderDev/HAPIHost/MChip				\
 `pkg-config --cflags libusb-1.0`
 
 override OBJS_WRAPPERS = log.o baseif.o registryif.o USBif.o I2Cif.o
@@ -31,46 +32,81 @@ override OS_INC := `pkg-config --cflags libusb-1.0`
 include ./Hauppauge/TestApp/build-ADV7842/Makefile
 
 REC_CXX = g++
-REC_CXXFLAGS := -g -c -Wall -std=c++11 -fdiagnostics-color -DBOOST_LOG_DYN_LINK ${CFLAGS}
+REC_CXXFLAGS := -g -c -Wall -std=c++11 -fdiagnostics-color \
+	-DBOOST_LOG_DYN_LINK ${CFLAGS}
+
 REC_LDFLAGS =
 
-#	        `pkg-config --libs libsystemd` \
+#	`pkg-config --libs libsystemd` \
 
-REC_LDFLAGS  += `pkg-config --libs libusb-1.0` \
-	        -lpthread
+REC_LDFLAGS += `pkg-config --libs libusb-1.0` \
+	-lpthread
 
-REC_SOURCES = Logger.cpp Common.cpp MythTV.cpp FlipInterlacedFields.cpp HauppaugeDev.cpp hauppauge2.cpp
+REC_SOURCES = Logger.cpp Common.cpp MythTV.cpp FlipInterlacedFields.cpp \
+	HauppaugeDev.cpp hauppauge2.cpp
+
 REC_HEADERS = Logger.h Common.h MythTV.h FlipInterlacedFields.h HauppaugeDev.h
+
 REC_OBJECTS = $(REC_SOURCES:.cpp=.o)
 
 CONF = etc/sample.conf
-FIRMWARE = Hauppauge/Common/EncoderDev/HAPIHost/bin/llama_usb_vx_host_slave_t22_24.bin Hauppauge/Common/EncoderDev/HAPIHost/bin/mips_vx_host_slave.bin
+
+FIRMWARE = Hauppauge/Common/EncoderDev/HAPIHost/bin/llama_usb_vx_host_slave_t22_24.bin \
+	Hauppauge/Common/EncoderDev/HAPIHost/bin/mips_vx_host_slave.bin
+
+#
+# Generated .cpp files created by the Hauppauge build system.
+# These are safe to remove during "make clean".
+#
 TRANSIENT = FX2Firmware.cpp mchip_binary.cpp
-REC_EXE  = hauppauge2
+
+REC_EXE = hauppauge2
+
 REC_LIBS = libADV7842.a
-REC_LIBS += -lboost_program_options -lboost_log -lboost_log_setup -lboost_system -lboost_thread -lboost_filesystem
+REC_LIBS += -lboost_program_options -lboost_log -lboost_log_setup \
+	-lboost_thread -lboost_filesystem
+
 
 all: ${REC_EXE}
 
-${REC_EXE}: ${REC_OBJECTS} ${REC_LIBS}
-	${REC_CXX} ${REC_OBJECTS} -o $@ ${REC_LIBS} ${REC_LDFLAGS} 
+
+${REC_EXE}: ${REC_OBJECTS} libADV7842.a
+	${REC_CXX} ${REC_OBJECTS} -o $@ ${REC_LIBS} ${REC_LDFLAGS}
+
 
 ${REC_OBJECTS}: ${REC_SOURCES}
+
 
 .cpp.o:
 	${REC_CXX} ${REC_CXXFLAGS} $< -o $@
 
+
 #.c.o:
 #	${REC_CXX} ${REC_CXXFLAGS} $< -o $@
+
+
+#
+# Override the unsafe clean target inherited from:
+#
+#   Hauppauge/TestApp/build-ADV7842/Makefile
+#
+# The upstream target removes:
+#
+#   *.o *.a *.cpp
+#
+# which also deletes the HauppaugeUSB application source files.
+#
+# Only remove generated build products here.
+#
+clean:
+	$(RM) *.o *.a ${REC_EXE} ${TRANSIENT}
+
 
 install: ${REC_EXE}
 	ln -snf ${TOP}/Common/*.cfg .
 	ln -snf $(TOP)/Common/EncoderDev/HAPIHost/bin/*.bin .
+	install -D --target-directory $(PREFIX)/bin ${REC_EXE}
+	install -D --target-directory $(PREFIX)/firmware ${FIRMWARE}
+	install -D --target-directory $(PREFIX)/etc ${CONF}
 
-clean:
-	$(RM) *.o *.a ${REC_EXE} ${TRANSIENT}
-
-install:
-	install -D --target-directory /opt/Hauppauge/bin ${REC_EXE}
-	install -D --target-directory /opt/Hauppauge/firmware ${FIRMWARE}
-	install -D --target-directory /opt/Hauppauge/etc ${CONF}
+.PHONY: all clean install

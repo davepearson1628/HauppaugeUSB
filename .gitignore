@@ -1,6 +1,17 @@
-hdpvr2_ver7
+# Build products
+*.o
+*.a
+hauppauge2
+
+# External Hauppauge source tree/symlink
+Hauppauge
+
+# Generated source files
+FX2Firmware.cpp
+mchip_binary.cpp
+
+# Runtime/generated files
+hauppauge2.*.log
 *.bin
 *.ts
 *.cfg
-FX2Firmware.cpp
-mchip_binary.cpp
