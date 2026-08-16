@@ -318,10 +318,6 @@ The connected source device should be configured to output the original
 audio format where possible rather than permanently converting all audio
 to PCM or Dolby Digital.
 
-**Hardware status:** AUTO mode has been tested with the Hauppauge HD PVR 2
-Gaming Edition Plus with S/PDIF input. It has not yet been tested with the
-Colossus 2.
-
 ----
 
 ## Using with MythTV
