@@ -48,8 +48,9 @@ hardware and audio connections:
 * **Hauppauge Colossus 2 - HDMI:** Tested successfully. PCM stereo is
   automatically encoded as AAC and Dolby Digital is automatically encoded
   as AC3.
-* **Hauppauge Colossus 2 - S/PDIF:** Automatic detection has not yet been
-  tested.
+* **Hauppauge Colossus 2 - S/PDIF:** Tested successfully. PCM stereo is
+  automatically encoded as AAC and Dolby Digital is automatically encoded
+  as AC3
 
 **Important:** On the HD PVR 2 USB device, automatic audio detection
 currently requires the S/PDIF audio input (`audio=1`). Automatic detection
@@ -69,6 +70,14 @@ For the Colossus 2 using HDMI audio:
 ```ini
 input=3
 audio=3
+codec=12
+```
+
+For the Colossus 2 using S/PDIF audio:
+
+```ini
+input=3
+audio=1
 codec=12
 ```
 
