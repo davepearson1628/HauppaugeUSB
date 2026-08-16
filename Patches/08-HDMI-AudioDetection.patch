@@ -1,0 +1,58 @@
+--- a/Common/Rx/receiver.h
++++ b/Common/Rx/receiver.h
+@@ -26,6 +26,19 @@
+ 
+ typedef struct {
+ 	float sampleRate;
++
++	// IEC-60958 channel status:
++	// false = linear PCM/audio
++	// true  = non-PCM/non-audio, potentially IEC-61937 compressed audio
++	bool nonPCM;
++
++	// Raw RX_AUDIO_TYPE value returned by the ADV7842 library.
++	// Kept as unsigned here so receiver.h does not depend on ADV7842 headers.
++	unsigned audioType;
++
++	// Raw five-byte HDMI/IEC audio channel-status block.
++	unsigned char channelStatus[5];
++
+ } receiverAudioParams_t;
+ 
+ typedef enum {
+--- a/Common/Rx/receiver_ADV7842.cpp
++++ b/Common/Rx/receiver_ADV7842.cpp
+@@ -283,11 +283,32 @@
+ }
+ 
+ bool receiver_ADV7842_t::getAudioParams(receiverAudioParams_t *ret) {
+-	uint8_t buf[5];
++	uint8_t buf[5] = {0, 0, 0, 0, 0};
+ 	unsigned t = 3;
++
+ 	while(ADIAPI_RxHdmiGetAudioChanStatus(buf) != ATVERR_OK) {
+ 		if(!--t) return false;
+ 	}
++
++	for(unsigned i = 0; i < 5; ++i)
++		ret->channelStatus[i] = buf[i];
++
++	/*
++	 * IEC-60958 channel-status byte 0, bit 1:
++	 *   0 = linear PCM / normal audio samples
++	 *   1 = non-linear PCM / non-audio
++	 *
++	 * IEC-61937 compressed audio such as AC3 should therefore
++	 * appear with this bit set.
++	 */
++	ret->nonPCM = ((buf[0] & 0x02) != 0);
++
++	RX_AUDIO_TYPE audioType = RX_AUDIO_UNDEFINED;
++	if(ADIAPI_RxHdmiGetAudioType(&audioType) == ATVERR_OK)
++		ret->audioType = static_cast<unsigned>(audioType);
++	else
++		ret->audioType = static_cast<unsigned>(RX_AUDIO_UNDEFINED);
++
+ 	switch(buf[3] & 0x0F) { // sample frequency
+ 		case(0):
+ 			ret->sampleRate = 44100;

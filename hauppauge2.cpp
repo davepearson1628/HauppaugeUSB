@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
         ("audio,a", po::value<int>()->default_value(3),
          "Audio input (0=RCA, 1=SPDIF, 2=SDI, 3=HDMI)")
         ("codec,d", po::value<int>()->default_value(3),  // 2?
-         "Audio codec (1=MPEG, 2=AC3, 3=AAC, 6=MP3, 8=PCM, 9=PASSTHROUGH)")
+         "Audio codec (1=MPEG, 2=AC3, 3=AAC, 6=MP3, 8=PCM, 9=PASSTHROUGH, 12=AUTO)")
 #if 0
         ("audiomode,e", po::value<int>()->default_value(3),
          "Audio capture mode (0=None, 1=Frame, 2=frame-frame, "

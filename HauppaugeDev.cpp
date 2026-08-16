@@ -330,6 +330,66 @@ bool HauppaugeDev::set_input_format(encoderSource_t source,
         RegistryAccess::writeDword(
             "AudioCodecOutputFormat", detectedCodec);
     }
+    else if (m_params.audioCodec == HAPI_AUDIO_CODEC_AUTO &&
+             m_params.audioInput == HAPI_AUDIO_CAPTURE_SOURCE_HDMI)
+    {
+        /*
+         * HDMI AUTO detection.
+         *
+         * On the Colossus 2 the ADV7842 receiver reports nonPCM=false for
+         * stereo PCM and nonPCM=true for compressed Dolby Digital input.
+         * Use that indication to select the same existing AAC/AC3 paths.
+         */
+        HAPI_AUDIO_CODEC detectedCodec = HAPI_AUDIO_CODEC_AAC;
+        bool formatDetected = false;
+
+        for (unsigned attempt = 0; attempt < 20; ++attempt)
+        {
+            receiverAudioParams_t ap;
+            ap.sampleRate = 0;
+            ap.nonPCM = false;
+            ap.audioType = 0;
+
+            for (unsigned i = 0; i < 5; ++i)
+                ap.channelStatus[i] = 0;
+
+            if (m_rxDev->getAudioParams(&ap) && ap.sampleRate > 0)
+            {
+                if (ap.nonPCM)
+                {
+                    detectedCodec = HAPI_AUDIO_CODEC_AC3;
+                    audioFormat = ENCAIF_AC3;
+                    formatDetected = true;
+
+                    INFOLOG << "ADV7842 detected non-PCM HDMI audio - "
+                            << "selecting AC3 encoder";
+                    break;
+                }
+
+                detectedCodec = HAPI_AUDIO_CODEC_AAC;
+                audioFormat = ENCAIF_AUTO;
+                formatDetected = true;
+
+                INFOLOG << "ADV7842 detected PCM HDMI audio - "
+                        << "selecting AAC encoder";
+                break;
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        if (!formatDetected)
+        {
+            detectedCodec = HAPI_AUDIO_CODEC_AAC;
+            audioFormat = ENCAIF_AUTO;
+
+            WARNLOG << "Unable to determine HDMI audio format - "
+                    << "falling back to AAC";
+        }
+
+        RegistryAccess::writeDword(
+            "AudioCodecOutputFormat", detectedCodec);
+    }
 
     set_audio_format(audioFormat);
 
