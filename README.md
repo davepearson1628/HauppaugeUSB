@@ -28,21 +28,49 @@ HD PVR 2 and Colossus 2 devices under Linux and with MythTV.
 This fork builds on that work with a number of changes intended to make
 the driver easier to configure and use with modern setups.
 
-The main addition is a new automatic audio mode (`codec=12`). When using
-the S/PDIF audio input, the application detects the incoming audio format
-and automatically selects the appropriate encoder:
+The main addition is a new automatic audio mode (`codec=12`). The
+application detects whether the incoming digital audio is PCM stereo or
+Dolby Digital and automatically selects the appropriate encoder:
 
 * PCM stereo input is encoded as AAC.
-* IEC61937 / Dolby Digital input is encoded as AC3.
+* Dolby Digital / AC3 input is encoded as AC3.
 
 This allows a single configuration file to be used for channels which
 alternate between stereo PCM and Dolby Digital audio, without maintaining
 separate AAC and AC3 configurations.
 
-The automatic audio detection has been tested successfully with a
-Hauppauge HD PVR 2 Gaming Edition Plus with S/PDIF input. It has **not yet
-been tested with a Colossus 2**, although testing on that hardware is
-planned.
+Automatic audio detection has currently been tested with the following
+hardware and audio connections:
+
+* **Hauppauge HD PVR 2 Gaming Edition Plus - S/PDIF:** Tested successfully.
+  PCM stereo is automatically encoded as AAC and Dolby Digital is
+  automatically encoded as AC3.
+* **Hauppauge Colossus 2 - HDMI:** Tested successfully. PCM stereo is
+  automatically encoded as AAC and Dolby Digital is automatically encoded
+  as AC3.
+* **Hauppauge Colossus 2 - S/PDIF:** Automatic detection has not yet been
+  tested.
+
+**Important:** On the HD PVR 2 USB device, automatic audio detection
+currently requires the S/PDIF audio input (`audio=1`). Automatic detection
+does not currently operate with HDMI selected as the audio input on this
+device.
+
+For the HD PVR 2, a typical automatic audio configuration is therefore:
+
+```ini
+input=3
+audio=1
+codec=12
+```
+
+For the Colossus 2 using HDMI audio:
+
+```ini
+input=3
+audio=3
+codec=12
+```
 
 This fork also includes several build and usability improvements:
 
@@ -54,13 +82,10 @@ This fork also includes several build and usability improvements:
 * Registry parameter handling has been corrected so that automatically
   detected audio settings can override values loaded from the configuration
   file.
+* `hauppauge2 --help` now documents `codec=12` as the AUTO audio mode.
 
 The original fixes remain, including the correction for interlaced field
 ordering and AC3 audio support.
-
-Note: Even when using HDMI for audio, the models with a S/PDIF input are
-required if you want AC3 surround sound.
-
 ----
 
 ## Installing
