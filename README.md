@@ -39,25 +39,34 @@ This allows a single configuration file to be used for channels which
 alternate between stereo PCM and Dolby Digital audio, without maintaining
 separate AAC and AC3 configurations.
 
-Automatic audio detection has currently been tested with the following
-hardware and audio connections:
+Automatic audio detection has currently been tested successfully with the
+following hardware and audio connections:
 
-* **Hauppauge HD PVR 2 Gaming Edition Plus - S/PDIF:** Tested successfully.
-  PCM stereo is automatically encoded as AAC and Dolby Digital is
-  automatically encoded as AC3.
-* **Hauppauge Colossus 2 - HDMI:** Tested successfully. PCM stereo is
+* **Hauppauge HD PVR 2 Gaming Edition Plus - HDMI:** PCM stereo is
   automatically encoded as AAC and Dolby Digital is automatically encoded
   as AC3.
-* **Hauppauge Colossus 2 - S/PDIF:** Tested successfully. PCM stereo is
+* **Hauppauge HD PVR 2 Gaming Edition Plus - S/PDIF:** PCM stereo is
   automatically encoded as AAC and Dolby Digital is automatically encoded
-  as AC3
+  as AC3.
+* **Hauppauge Colossus 2 - HDMI:** PCM stereo is automatically encoded as
+  AAC and Dolby Digital is automatically encoded as AC3.
+* **Hauppauge Colossus 2 - S/PDIF:** PCM stereo is automatically encoded as
+  AAC and Dolby Digital is automatically encoded as AC3.
 
-**Important:** On the HD PVR 2 USB device, automatic audio detection
-currently requires the S/PDIF audio input (`audio=1`). Automatic detection
-does not currently operate with HDMI selected as the audio input on this
-device.
+**HDMI audio note:** Automatic detection over HDMI depends on the audio
+format actually supplied by the connected source device. HDMI audio
+negotiation may cause some sources or intermediate HDMI equipment to output
+PCM even when Dolby Digital content is available.
 
-For the HD PVR 2, a typical automatic audio configuration is therefore:
+For the HD PVR 2 using HDMI audio:
+
+```ini
+input=3
+audio=3
+codec=12
+```
+
+For the HD PVR 2 using S/PDIF audio:
 
 ```ini
 input=3
