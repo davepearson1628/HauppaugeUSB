@@ -8,7 +8,7 @@
 > continue development because he no longer owns the hardware.
 >
 > Development of this fork is currently being tested primarily with the
-> Hauppauge HD PVR 2 Gaming Edition Plus. Colossus 2 testing is planned.
+> Hauppauge HD PVR 2 Gaming Edition Plus and Colossus 2.
 
 A wrapper around the Hauppauge HDPVR2/Colossus2 Linux "[driver](http://www.hauppauge.com/site/support/linux.html?#tabs-3)"
 
@@ -90,20 +90,89 @@ audio=1
 codec=12
 ```
 
+### August 2026 - One-shot snapshot capture
+
+This fork also adds an optional one-shot snapshot facility. It allows another
+application or script to request a JPEG image from the video stream currently
+being captured by `hauppauge2`.
+
+The snapshot is taken from the already-running capture stream. The Hauppauge
+device is not opened a second time, and the normal MPEG-TS output continues
+unchanged. This means the feature can be used both when `hauppauge2` is
+writing directly to an output stream and when it is operating as a MythTV
+External Recorder.
+
+Enable it in the configuration file with:
+
+```ini
+mdp=true
+mdp_image=/run/hauppauge2/mdp-live.jpg
+mdp_delay=3000
+```
+
+The options are:
+
+* `mdp` - enables or disables one-shot snapshot support.
+* `mdp_image` - destination filename for the requested JPEG image.
+* `mdp_delay` - delay, in milliseconds, between receiving a snapshot request
+  and beginning the snapshot capture. The built-in default is 1500 ms.
+
+A longer `mdp_delay` can be useful after a channel change when the video source
+or an on-screen display needs time to settle. Testing with a Virgin TV360 set
+top box found 3000 ms to be more reliable.
+
+To request an image, create a file whose name is the configured `mdp_image`
+with `.request` appended.
+
+For example:
+
+```bash
+rm -f /run/hauppauge2/mdp-live.jpg
+touch /run/hauppauge2/mdp-live.jpg.request
+```
+
+With the example configuration above, `hauppauge2` consumes:
+
+```text
+/run/hauppauge2/mdp-live.jpg.request
+```
+
+and writes a fresh JPEG to:
+
+```text
+/run/hauppauge2/mdp-live.jpg
+```
+
+The image is produced only in response to a request; it is not continuously
+updated.
+
+The snapshot facility does not perform image recognition itself. It simply
+provides a current frame to an external application or script. This can be
+used for purposes such as detecting an on-screen prompt after a channel
+change without interfering with the stream being sent to MythTV, ffmpeg or
+another application.
+
+Snapshot generation uses `ffmpeg`, so `ffmpeg` must be installed if
+`mdp=true` is used.
+
+### Other improvements
+
 This fork also includes several build and usability improvements:
 
 * `make clean` no longer deletes the HauppaugeUSB application source files.
 * The installation prefix can be changed rather than being permanently
   hard-coded.
-* The supplied `sample.conf` has been updated for HDMI video, S/PDIF audio
-  and automatic audio codec selection.
+* The supplied `sample.conf` has been updated for HDMI video, S/PDIF audio,
+  automatic audio codec selection and optional snapshot support.
 * Registry parameter handling has been corrected so that automatically
   detected audio settings can override values loaded from the configuration
   file.
-* `hauppauge2 --help` now documents `codec=12` as the AUTO audio mode.
+* `hauppauge2 --help` now documents `codec=12` as the AUTO audio mode and
+  the `mdp`, `mdp_image` and `mdp_delay` snapshot options.
 
 The original fixes remain, including the correction for interlaced field
 ordering and AC3 audio support.
+
 ----
 
 ## Installing
@@ -116,10 +185,19 @@ ordering and AC3 audio support.
 sudo dnf install make gcc gcc-c++ kernel-devel libstdc++-devel boost-devel libusbx-devel
 ```
 
+If you intend to use one-shot snapshot support, also install `ffmpeg` using
+the appropriate repository for your Fedora installation.
+
 #### Ubuntu
 
 ```
 sudo apt-get install libboost-log-dev libboost-program-options-dev libboost-thread-dev libboost-filesystem-dev libusb-1.0-0-dev build-essential
+```
+
+If you intend to use one-shot snapshot support:
+
+```
+sudo apt-get install ffmpeg
 ```
 
 #### MythTV
@@ -293,8 +371,8 @@ nano hdpvr2-1.conf
 
 ### Automatic AAC / AC3 audio selection
 
-This fork adds `codec=12`, which enables automatic audio codec selection
-when using the S/PDIF input.
+This fork adds `codec=12`, which enables automatic audio codec selection for
+supported digital audio inputs.
 
 A typical configuration for HDMI video and S/PDIF audio is:
 
@@ -309,11 +387,19 @@ audio=1
 codec=12
 ```
 
-With `codec=12` and `audio=1`, hauppauge2 examines the incoming S/PDIF
-audio format when the device is initialized.
+For HDMI audio instead:
 
-For PCM input it selects the AAC encoder. For IEC61937 / Dolby Digital
-input it selects the AC3 encoder.
+```
+input=3
+audio=3
+codec=12
+```
+
+With `codec=12`, hauppauge2 examines the incoming digital audio format when
+the device is initialized.
+
+For PCM input it selects the AAC encoder. For Dolby Digital input it selects
+the AC3 encoder.
 
 This is particularly useful with set-top boxes where some channels provide
 stereo PCM and others provide Dolby Digital. Previously these could require
@@ -326,6 +412,41 @@ the application falls back to AAC.
 The connected source device should be configured to output the original
 audio format where possible rather than permanently converting all audio
 to PCM or Dolby Digital.
+
+### One-shot snapshot capture
+
+Snapshot support can be enabled in the same configuration file:
+
+```ini
+mdp=true
+mdp_image=/run/hauppauge2/mdp-live.jpg
+mdp_delay=3000
+```
+
+The request file is the configured image filename with `.request` appended.
+
+For example:
+
+```bash
+rm -f /run/hauppauge2/mdp-live.jpg
+touch /run/hauppauge2/mdp-live.jpg.request
+```
+
+The existing `hauppauge2` process will consume the request and create:
+
+```text
+/run/hauppauge2/mdp-live.jpg
+```
+
+The snapshot is taken from the active MPEG-TS capture without changing or
+interrupting the normal output stream.
+
+`mdp_delay` is specified in milliseconds. The default is 1500 ms. Increase
+it if the snapshot is intended to capture an on-screen display which takes
+time to appear after a channel change.
+
+The snapshot output path must be writable by the user running `hauppauge2`,
+and `ffmpeg` must be available in `PATH`.
 
 ----
 
@@ -357,8 +478,29 @@ audio=1
 codec=12
 ```
 
+For HDMI audio:
+
+```
+input=3
+audio=3
+codec=12
+```
+
 This allows the same MythTV External Recorder configuration to capture
 either AAC stereo or AC3 Dolby Digital depending on the incoming audio.
+
+Optional one-shot snapshot support can also be enabled in a MythTV External
+Recorder configuration:
+
+```ini
+mdp=true
+mdp_image=/run/hauppauge2/mdp-live.jpg
+mdp_delay=3000
+```
+
+An external channel-change or automation script can then request a fresh
+frame from the already-running MythTV capture without opening the Hauppauge
+device a second time.
 
 #### Configure MythTV
 

@@ -30,36 +30,58 @@
 struct Parameters
 {
     std::string version;
+
     int    verbose;
     bool   audioBoost;
+
     int    tsBitrate;
     int    videoBitrate;
     int    videoVBRMin;
     int    videoVBRMax;
+
     int    bFrames;
     float  aspectRatio;
+
     std::string serial;
     std::string output;
+
     bool   mythtv;
     bool   flipFields;
 
+    /*
+     * One-shot MDP snapshot support.
+     */
+    bool        mdp;
+    std::string mdpImage;
+    int         mdpDelay;
+
     _HAPI_VIDEO_CAPTURE_SOURCE videoInput;
     _HAPI_AUDIO_CAPTURE_SOURCE audioInput;
+
     _HAPI_RATE_CONTROL     videoRateControl;
     _HAPI_CODING_MODE      videoCodingMode;
     _HAPI_VIDEO_PROFILE    videoProfile;
     _HAPI_VIDEO_H264_LEVEL videoH264Level;
     _HAPI_LATENCY          videoLatency;
 
-    HAPI_AUDIO_CODEC       audioCodec;
+    HAPI_AUDIO_CODEC audioCodec;
+
 #if 0
     _HAPI_AUDIO_CAPTURE_MODE audioCaptureMode;
 #endif
+
     HAPI_AUDIO_SAMPLE_RATE audioSamplerate;
     _HAPI_AUDIO_BITRATE    audioBitrate;
 };
 
-bool StartEncoding(encoderDev_DXT_t & encDev, FX2Device_t & fx2);
-bool StopEncoding(encoderDev_DXT_t & encDev, FX2Device_t & fx2);
+bool StartEncoding(
+    encoderDev_DXT_t &encDev,
+    FX2Device_t &fx2
+);
+
+bool StopEncoding(
+    encoderDev_DXT_t &encDev,
+    FX2Device_t &fx2
+);
 
 #endif
