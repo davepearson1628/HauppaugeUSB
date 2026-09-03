@@ -24,6 +24,7 @@
 #include "Common.h"
 #include "HauppaugeDev.h"
 #include "USBif.h"
+#include "TSRandomAccessFixer.h"
 
 #include <atomic>
 #include <string>
@@ -54,6 +55,9 @@ class Buffer
     }
     void SetBlockSize(uint32_t sz) { m_block_size = sz; }
     void Fill(void * data, size_t len);
+    void ResetStream(void);
+    void Flush(void);
+    bool Drain(std::chrono::milliseconds timeout);
 
     DataTransfer::callback_t & getWriteCallBack(void) { return m_cb; }
     std::chrono::time_point<std::chrono::system_clock> HeartBeat(void) const
@@ -76,7 +80,12 @@ class Buffer
 
     stack_t  m_data;
 
+    TSRandomAccessFixer m_ts_fixer;
+    int                 m_dropped;
+
     std::chrono::time_point<std::chrono::system_clock> m_heartbeat;
+
+    void Queue(block_t &&blk);
 };
 
 class Commands

@@ -42,10 +42,11 @@ REC_LDFLAGS =
 REC_LDFLAGS += `pkg-config --libs libusb-1.0` \
 	-lpthread
 
-REC_SOURCES = Logger.cpp Common.cpp MythTV.cpp FlipInterlacedFields.cpp \
-	HauppaugeDev.cpp hauppauge2.cpp
+REC_SOURCES = Logger.cpp Common.cpp MythTV.cpp TSRandomAccessFixer.cpp \
+	FlipInterlacedFields.cpp HauppaugeDev.cpp hauppauge2.cpp
 
-REC_HEADERS = Logger.h Common.h MythTV.h FlipInterlacedFields.h HauppaugeDev.h
+REC_HEADERS = Logger.h Common.h MythTV.h TSRandomAccessFixer.h \
+	FlipInterlacedFields.h HauppaugeDev.h
 
 REC_OBJECTS = $(REC_SOURCES:.cpp=.o)
 

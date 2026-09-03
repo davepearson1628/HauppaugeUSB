@@ -22,6 +22,7 @@
 #include "Logger.h"
 #include <unistd.h>
 #include <poll.h>
+#include <utility>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -169,6 +170,13 @@ bool MythTV::StartEncoding(string & resultmsg)
         return false;
     }
 
+    /*
+     * Each MythTV recording is a fresh transport stream from the point of
+     * view of the RAI fixer. Do not carry PAT/PMT, continuity adjustment or
+     * a partial PES across recordings.
+     */
+    m_buffer.ResetStream();
+
     if (!m_dev->StartEncoding())
     {
         resultmsg = m_dev->ErrorString();
@@ -209,15 +217,24 @@ bool MythTV::StopEncoding(string & resultmsg, bool soft)
     }
     m_flow_mutex.unlock();
 
-    m_streaming = false;
-    m_flow_cond.notify_all();
-
     INFOLOG << "Stopping encoder.";
     if (!m_dev->StopEncoding())
     {
         resultmsg = m_dev->ErrorString();
         return false;
     }
+
+    /*
+     * The TS fixer deliberately buffers one video PES so that it can inspect
+     * the complete H.264 access unit before deciding whether RAI is needed.
+     * Flush that final PES while the output thread is still allowed to write,
+     * then give the queue a short opportunity to drain.
+     */
+    m_buffer.Flush();
+    m_buffer.Drain(std::chrono::milliseconds(1000));
+
+    m_streaming = false;
+    m_flow_cond.notify_all();
 
     resultmsg.clear();
     INFOLOG << "Encoder stopped";
@@ -475,6 +492,7 @@ void Commands::Run(void)
                 if (!process_command(cmd))
                     m_parent->Fatal("Invalid command");
             }
+
             else if (ret < 0)
             {
                 if ((EOVERFLOW == errno))
@@ -503,31 +521,27 @@ Buffer::Buffer(MythTV * parent)
     , m_run(true)
     , m_cb(std::bind(&Buffer::Fill, this, std::placeholders::_1,
                      std::placeholders::_2))
+    , m_dropped(0)
 {
     m_heartbeat = std::chrono::system_clock::now();
 }
 
-void Buffer::Fill(void * data, size_t len)
+void Buffer::Queue(block_t &&blk)
 {
-    if (len < 1)
+    if (blk.empty())
         return;
-
-    static int dropped = 0;
 
     if (m_parent->m_flow_mutex.try_lock_for(std::chrono::seconds(2)))
     {
         if (m_data.size() < MAX_QUEUE)
         {
-            block_t blk(reinterpret_cast<uint8_t *>(data),
-                        reinterpret_cast<uint8_t *>(data) + len);
-
-            m_data.push(blk);
-            dropped = 0;
+            m_data.push(std::move(blk));
+            m_dropped = 0;
         }
-        else if (++dropped % 25 == 0)
+        else if (++m_dropped % 25 == 0)
         {
-            WARNLOG << "Packet queue overrun.  Dropped " << dropped
-                    << "packets.";
+            WARNLOG << "Packet queue overrun.  Dropped " << m_dropped
+                    << " packets.";
         }
 
         m_parent->m_flow_mutex.unlock();
@@ -537,6 +551,56 @@ void Buffer::Fill(void * data, size_t len)
         WARNLOG << "Fill: Timed out on flow lock.";
 
     m_heartbeat = std::chrono::system_clock::now();
+}
+
+void Buffer::Fill(void * data, size_t len)
+{
+    if (len < 1)
+        return;
+
+    block_t blk = m_ts_fixer.Process(data, len);
+    Queue(std::move(blk));
+}
+
+void Buffer::ResetStream(void)
+{
+    m_ts_fixer.Reset();
+}
+
+void Buffer::Flush(void)
+{
+    block_t blk = m_ts_fixer.Flush();
+    Queue(std::move(blk));
+
+    INFOLOG << "TS RAI fixer: marked "
+            << m_ts_fixer.RecoveryPointsMarked()
+            << " recovery points, inserted "
+            << m_ts_fixer.ExtraPacketsInserted()
+            << " extra TS packets.";
+}
+
+bool Buffer::Drain(std::chrono::milliseconds timeout)
+{
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        bool empty = false;
+
+        if (m_parent->m_flow_mutex.try_lock_for(std::chrono::milliseconds(50)))
+        {
+            empty = m_data.empty();
+            m_parent->m_flow_mutex.unlock();
+        }
+
+        if (empty)
+            return true;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    WARNLOG << "Buffer: timed out waiting for output queue to drain.";
+    return false;
 }
 
 void Buffer::Run(void)
