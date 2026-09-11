@@ -243,10 +243,16 @@ void HauppaugeDev::configure(void)
     );
 
 
-    // RegistryAccess::writeDword(
-    //     "AudioCapSPDIFInput",
-    //     3
-    // );
+    if (
+        m_params.audioInput ==
+        HAPI_AUDIO_CAPTURE_SOURCE_SPDIF
+    )
+    {
+        RegistryAccess::writeDword(
+            "AudioCapSPDIFInput",
+            3
+        );
+    }
 
 
     /*
@@ -567,6 +573,13 @@ encoderAudioInFormat_t HauppaugeDev::configure_audio_format(void)
             );
 
 
+            m_fx2->setPortStateBits(
+                FX2_PORT_E,
+                0x10,
+                0x00
+            );
+
+
             cs8416.reset(
                 audio_CS8416::
                 AudioInput::OPTICAL
@@ -613,7 +626,6 @@ encoderAudioInFormat_t HauppaugeDev::configure_audio_format(void)
                         &rxerr,
                         1
                     );
-
 
                 if (
                     afmtdOK
