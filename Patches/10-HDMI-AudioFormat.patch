@@ -1,0 +1,65 @@
+--- a/Common/EncoderDev/encoderDev.h
++++ b/Common/EncoderDev/encoderDev.h
+@@ -59,6 +59,7 @@
+ 
+         virtual bool setHDMIFormat(
+                 int hdmi_fmt,
++                encoderAudioInFormat_t audioFormat,
+                 float audioSampleRate) = 0;
+ 
+         virtual bool setHDMIAR(float aspectRatio) = 0;
+--- a/Common/EncoderDev/encoderDev_DXT.h
++++ b/Common/EncoderDev/encoderDev_DXT.h
+@@ -23,7 +23,7 @@
+ 		unsigned width, unsigned height, bool interlaced, float vFreq, float aspectRatio,
+ 		float audioSampleRate);
+ 
+-	bool setHDMIFormat(int hdmi_fmt, float audioSampleRate);
++	bool setHDMIFormat(int hdmi_fmt, encoderAudioInFormat_t audioFormat, float audioSampleRate);
+ 	bool setHDMIAR(float aspectRatio);
+ };
+ 
+--- a/Common/EncoderDev/encoderDev_DXT.cpp
++++ b/Common/EncoderDev/encoderDev_DXT.cpp
+@@ -136,7 +136,7 @@
+ 	return true;
+ }
+ 
+-bool encoderDev_DXT_t::setHDMIFormat(int hdmi_fmt, float audioSampleRate) {
++bool encoderDev_DXT_t::setHDMIFormat(int hdmi_fmt, encoderAudioInFormat_t audioFormat, float audioSampleRate) {
+ 	wrapLogDebug("encoderDev_DXT_t::setHdmiFormat(id)");
+ 	CHapi *hapi = (CHapi*)m_hapi;
+ 	HAPI_SET_PARAM _Param;
+@@ -159,5 +159,21 @@
+ 
+ 	hapi->set_param(&_Param, "AudioCapSource", 3); // always HDMI for this design // 0: LR, 1:SPDIF, 2:SDI, 3: HDMI
++	switch(audioFormat) {
++		case ENCAIF_AC3:
++			hapi->set_param(&_Param, "AudioCapSource", 3);
++			hapi->set_param(&_Param, "AudioPassthru", 1);
++			hapi->set_param(&_Param, "AudioCodecOutputFormat", 2);
++			hapi->set_param(&_Param, "AudioStreamID", 189);
++			break;
++
++		case ENCAIF_PCM:
++		default:
++			hapi->set_param(&_Param, "AudioPassthru", 0);
++			hapi->set_param(&_Param, "AudioCodecOutputFormat", 3);
++			hapi->set_param(&_Param, "AudioStreamID", 192);
++			break;
++	}
++
+ 	if(audioSampleRate != 0) {
+ 		hapi->set_param(&_Param, "AudioCapSampleRate", getAudioCapSampleRateNum(audioSampleRate));
+ 	}
+--- a/TestApp/main.cpp
++++ b/TestApp/main.cpp
+@@ -311,7 +311,7 @@
+ 			rxDev.getAudioParams(&ap);
+ 
+ 			int vic = rxDev.getHDMIFormat();
+-			if(vic <= 0 || !encDev.setHDMIFormat(vic, ap.sampleRate)) {
++			if(vic <= 0 || !encDev.setHDMIFormat(vic, audioSPDIF ? ENCAIF_AC3 : ENCAIF_AUTO, ap.sampleRate)) {
+ 				receiverHDMIParams_t vp;
+ 				if(!rxDev.getHDMIParams(&vp)) {
+ 					wrapLogError("Can't determine video mode");

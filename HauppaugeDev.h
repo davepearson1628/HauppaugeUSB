@@ -53,6 +53,7 @@ class HauppaugeDev
     void configure(void);
     bool set_digital_audio(bool optical);
     bool set_audio_format(encoderAudioInFormat_t audioFormat);
+    encoderAudioInFormat_t configure_audio_format(void);
     bool set_input_format(encoderSource_t source,
                           unsigned width, unsigned height,
                           bool interlaced, float vFreq,

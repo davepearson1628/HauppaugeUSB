@@ -517,31 +517,11 @@ bool HauppaugeDev::set_audio_format(
 
 
 // =====================================================================
-// Set input format
+// Configure audio format
 // =====================================================================
 
-bool HauppaugeDev::set_input_format(
-    encoderSource_t source,
-    unsigned width,
-    unsigned height,
-    bool interlaced,
-    float vFreq,
-    float aspectRatio,
-    float audioSampleRate)
+encoderAudioInFormat_t HauppaugeDev::configure_audio_format(void)
 {
-    INFOLOG
-        << "Input width: "
-        << width
-        << " height: "
-        << height
-        << " interlaced: "
-        << interlaced
-        << " vFreq: "
-        << vFreq
-        << " audio SR: "
-        << audioSampleRate;
-
-
     encoderAudioInFormat_t audioFormat =
         (
             m_params.audioCodec ==
@@ -892,6 +872,41 @@ bool HauppaugeDev::set_input_format(
     set_audio_format(
         audioFormat
     );
+
+
+
+    return audioFormat;
+}
+
+
+// =====================================================================
+// Set input format
+// =====================================================================
+
+bool HauppaugeDev::set_input_format(
+    encoderSource_t source,
+    unsigned width,
+    unsigned height,
+    bool interlaced,
+    float vFreq,
+    float aspectRatio,
+    float audioSampleRate)
+{
+    INFOLOG
+        << "Input width: "
+        << width
+        << " height: "
+        << height
+        << " interlaced: "
+        << interlaced
+        << " vFreq: "
+        << vFreq
+        << " audio SR: "
+        << audioSampleRate;
+
+
+    encoderAudioInFormat_t audioFormat =
+        configure_audio_format();
 
 
     // -----------------------------------------------------------------
@@ -1527,6 +1542,10 @@ bool HauppaugeDev::init_hdmi(void)
     );
 
 
+    encoderAudioInFormat_t audioFormat =
+        configure_audio_format();
+
+
     int vic =
         m_rxDev->getHDMIFormat();
 
@@ -1536,6 +1555,7 @@ bool HauppaugeDev::init_hdmi(void)
         ||
         !m_encDev->setHDMIFormat(
             vic,
+            audioFormat,
             ap.sampleRate
         )
     )

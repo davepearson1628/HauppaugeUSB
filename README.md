@@ -241,7 +241,8 @@ for fl in 01-NewLine.patch \
           06-AVOutputCallback.patch \
           07-ThreadName.patch \
           08-HDMI-AudioDetection.patch \
-          09-MDP-Snapshot.patch
+          09-MDP-Snapshot.patch \
+          10-HDMI-AudioFormat.patch
 do
     patch -p1 < ~/src/Hauppauge/HauppaugeUSB/Patches/"${fl}"
 done
