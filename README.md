@@ -42,12 +42,18 @@ separate AAC and AC3 configurations.
 Automatic audio detection has currently been tested successfully with the
 following hardware and audio connections:
 
-* **Hauppauge HD PVR 2 Gaming Edition Plus - HDMI:** PCM stereo is
-  automatically encoded as AAC and Dolby Digital is automatically encoded
-  as AC3.
-* **Hauppauge HD PVR 2 Gaming Edition Plus - S/PDIF:** PCM stereo is
-  automatically encoded as AAC and Dolby Digital is automatically encoded
-  as AC3.
+* **Hauppauge HD PVR 2 Gaming Edition Plus (Siena2-02 / E504) - HDMI:**
+  PCM stereo is automatically encoded as AAC and Dolby Digital is
+  automatically encoded as AC3.
+* **Hauppauge HD PVR 2 Gaming Edition Plus (Siena2-02 / E504) - optical
+  S/PDIF:** PCM stereo is automatically encoded as AAC and Dolby Digital is
+  automatically encoded as AC3.
+* **Hauppauge HD PVR 2 Gaming Edition Plus (Siena2-05a / E505) - HDMI:**
+  PCM stereo is automatically encoded as AAC and Dolby Digital is
+  automatically encoded as AC3.
+* **Hauppauge HD PVR 2 Gaming Edition Plus (Siena2-05a / E505) - S/PDIF:**
+  PCM stereo is automatically encoded as AAC and Dolby Digital is
+  automatically encoded as AC3.
 * **Hauppauge Colossus 2 - HDMI:** PCM stereo is automatically encoded as
   AAC and Dolby Digital is automatically encoded as AC3.
 * **Hauppauge Colossus 2 - S/PDIF:** PCM stereo is automatically encoded as
